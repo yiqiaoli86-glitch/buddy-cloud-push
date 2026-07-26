@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>搭档Buddy · 培训日程</title>
+<style>
+/* ===== 全局重置 ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #4A90D9;
+  --primary-dark: #3A7BC8;
+  --primary-light: #E8F1FB;
+  --bg: #F0F2F5;
+  --card-bg: #FFFFFF;
+  --text: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-light: #9CA3AF;
+  --border: #E5E7EB;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow-hover: 0 4px 20px rgba(0,0,0,0.1);
+  --radius: 14px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== 顶部导航栏 ===== */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #fff;
+  padding-top: var(--safe-top);
+  box-shadow: 0 2px 16px rgba(74, 144, 217, 0.3);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px 6px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.header-title .logo {
+  font-size: 20px;
+}
+
+/* 日期导航条 */
+.date-nav {
+  display: flex;
+  gap: 6px;
+  padding: 4px 12px 10px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.date-nav::-webkit-scrollbar { display: none; }
+
+.date-chip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 56px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 1.5px solid transparent;
+  user-select: none;
+}
+
+.date-chip .day { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.date-chip .weekday { font-size: 10px; opacity: 0.8; }
+.date-chip .count {
+  font-size: 9px;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.2);
+}
+
+.date-chip.active {
+  background: #fff;
+  color: var(--primary);
+  border-color: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+.date-chip.active .count {
+  background: var(--primary-light);
+}
+
+.date-chip.today {
+  border-color: rgba(255,255,255,0.5);
+}
+.date-chip.today.active {
+  border-color: var(--primary);
+}
+
+/* ===== 主体内容 — 水平滑动容器 ===== */
+.swipe-container {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-top: calc(100px + var(--safe-top));
+  padding-bottom: calc(50px + var(--safe-bottom));
+}
+.swipe-container::-webkit-scrollbar { display: none; }
+
+.day-panel {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 16px 20px;
+}
+
+/* ===== 日期标题 ===== */
+.day-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--primary-light);
+}
+
+.day-header .date-big {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.day-header .weekday-big {
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 600;
+  background: var(--primary-light);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.day-header .course-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ===== 休息日提示 ===== */
+.rest-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+  color: var(--text-light);
+}
+.rest-day .icon { font-size: 64px; margin-bottom: 16px; }
+.rest-day .text { font-size: 18px; font-weight: 600; }
+.rest-day .sub { font-size: 14px; margin-top: 8px; }
+
+/* ===== 课程时间轴 ===== */
+.timeline {
+  position: relative;
+  padding-left: 60px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 47px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--primary) 0%, var(--border) 100%);
+  border-radius: 1px;
+}
+
+/* ===== 课程卡片 ===== */
+.course-card {
+  position: relative;
+  margin-bottom: 14px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.course-card:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-hover);
+}
+
+/* 时间轴节点 */
+.course-card::before {
+  content: '';
+  position: absolute;
+  left: -19px;
+  top: 18px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px var(--primary-light);
+  z-index: 2;
+}
+
+/* 时间标签 */
+.course-time {
+  position: absolute;
+  left: -60px;
+  top: 14px;
+  width: 50px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.4;
+}
+.course-time .start { font-size: 14px; }
+.course-time .end { font-size: 11px; color: var(--text-light); }
+
+/* 类别标签条 */
+.category-bar {
+  height: 4px;
+  background: var(--primary);
+}
+
+/* 卡片内容 */
+.course-body {
+  padding: 14px 16px 12px;
+}
+
+.course-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.course-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.category-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.course-meta .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.course-meta .meta-icon {
+  font-size: 14px;
+}
+
+.course-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.course-content .content-line {
+  display: block;
+  padding: 2px 0;
+}
+
+/* ===== 底部提示 ===== */
+.footer-hint {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px calc(12px + var(--safe-bottom));
+  background: rgba(240, 242, 245, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 13px;
+  color: var(--text-light);
+  border-top: 1px solid var(--border);
+}
+
+.footer-hint .swipe-icon {
+  animation: swipeHint 2s ease-in-out infinite;
+}
+
+@keyframes swipeHint {
+  0%, 100% { transform: translateX(0); opacity: 0.5; }
+  50% { transform: translateX(6px); opacity: 1; }
+}
+
+/* ===== 加载状态 ===== */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+.loading .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--primary-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading .text {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== 错误状态 ===== */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+  padding: 40px;
+  text-align: center;
+}
+.error-state .icon { font-size: 48px; }
+.error-state .text { font-size: 16px; color: var(--text-secondary); }
+
+/* ===== 类别颜色 ===== */
+.cat-破冰训练 { background: #FFF3E0; color: #E65100; }
+.cat-破冰训练 ~ .category-bar { background: #FF9800; }
+
+/* 响应式 — 平板/桌面 */
+@media (min-width: 600px) {
+  .day-panel { max-width: 500px; margin: 0 auto; }
+  .swipe-container { justify-content: flex-start; }
+  .day-panel { flex: 0 0 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- 加载状态 -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="text">正在加载培训日程...</div>
+</div>
+
+<!-- 顶部导航 -->
+<div class="header" id="header" style="display:none">
+  <div class="header-title">
+    <span class="logo">📋</span>
+    <span>搭档Buddy · 培训日程</span>
+  </div>
+  <div class="date-nav" id="dateNav"></div>
+</div>
+
+<!-- 滑动容器 -->
+<div class="swipe-container" id="swipeContainer" style="display:none"></div>
+
+<!-- 底部提示 -->
+<div class="footer-hint" id="footerHint" style="display:none">
+  <span class="swipe-icon">👈</span>
+  <span>左右滑动查看更多日程</span>
+  <span class="swipe-icon">👉</span>
+</div>
+
+<script>
+// ===== 类别颜色映射 =====
+const CATEGORY_COLORS = {
+  '破冰训练':     { bar: '#FF9800', tag_bg: '#FFF3E0', tag_text: '#E65100' },
+  '高管面对面':   { bar: '#7C4DFF', tag_bg: '#EDE7F6', tag_text: '#4527A0' },
+  '应知应会类':   { bar: '#2196F3', tag_bg: '#E3F2FD', tag_text: '#1565C0' },
+  '团队活动':     { bar: '#4CAF50', tag_bg: '#E8F5E9', tag_text: '#2E7D32' },
+  '产业认知系列': { bar: '#00BCD4', tag_bg: '#E0F7FA', tag_text: '#00838F' },
+  '产业认知':     { bar: '#00BCD4', tag_bg: '#E0F7FA', tag_text: '#00838F' },
+  '技能实操':     { bar: '#F44336', tag_bg: '#FFEBEE', tag_text: '#C62828' },
+  '军训':         { bar: '#558B2F', tag_bg: '#F1F8E9', tag_text: '#33691E' },
+  '文化传承':     { bar: '#8D6E63', tag_bg: '#EFEBE9', tag_text: '#4E342E' },
+  '考核通关':     { bar: '#EC407A', tag_bg: '#FCE4EC', tag_text: '#AD1457' },
+  '结营':         { bar: '#5C6BC0', tag_bg: '#E8EAF6', tag_text: '#283593' },
+  '座谈交流':     { bar: '#26A69A', tag_bg: '#E0F2F1', tag_text: '#00695C' },
+};
+
+function getCategoryStyle(category) {
+  const key = Object.keys(CATEGORY_COLORS).find(k => category && category.includes(k));
+  return key ? CATEGORY_COLORS[key] : { bar: '#78909C', tag_bg: '#ECEFF1', tag_text: '#455A64' };
+}
+
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+// ===== 获取北京时间 =====
+function getBeijingNow() {
+  const now = new Date();
+  const beijingTime = new Date(now.getTime() + (now.getTimezoneOffset() + 8 * 60) * 60000);
+  return beijingTime;
+}
+
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ===== 主逻辑 =====
+let allDates = [];
+let coursesByDate = {};
+let currentIndex = 0;
+
+async function init() {
+  try {
+    // 加载课程数据
+    const resp = await fetch('courses.json?t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const courses = await resp.json();
+
+    // 按日期分组
+    coursesByDate = {};
+    const dateSet = new Set();
+    courses.forEach(c => {
+      const d = c.date;
+      if (!coursesByDate[d]) coursesByDate[d] = [];
+      coursesByDate[d].push(c);
+      dateSet.add(d);
+    });
+
+    allDates = Array.from(dateSet).sort();
+
+    // 确定默认日期：URL 参数 > 明天 > 最近的一天
+    const beijingNow = getBeijingNow();
+    const tomorrow = new Date(beijingNow);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = formatDate(tomorrow);
+    const todayStr = formatDate(beijingNow);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramDate = urlParams.get('date');
+
+    let defaultDate;
+    if (paramDate && coursesByDate[paramDate]) {
+      defaultDate = paramDate;
+    } else if (coursesByDate[tomorrowStr]) {
+      defaultDate = tomorrowStr;
+    } else if (coursesByDate[todayStr]) {
+      defaultDate = todayStr;
+    } else {
+      // 找最近的未来日期
+      const future = allDates.filter(d => d >= todayStr);
+      defaultDate = future.length > 0 ? future[0] : allDates[allDates.length - 1];
+    }
+
+    currentIndex = allDates.indexOf(defaultDate);
+    if (currentIndex < 0) currentIndex = 0;
+
+    // 渲染
+    renderDateNav(todayStr);
+    renderPanels();
+    scrollToIndex(currentIndex, false);
+
+    // 显示界面
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('header').style.display = 'block';
+    document.getElementById('swipeContainer').style.display = 'flex';
+    document.getElementById('footerHint').style.display = 'flex';
+
+    // 监听滚动
+    setupScrollListener();
+
+    // 5秒后隐藏底部提示
+    setTimeout(() => {
+      const hint = document.getElementById('footerHint');
+      if (hint) hint.style.opacity = '0';
+      setTimeout(() => { if (hint) hint.style.display = 'none'; }, 300);
+    }, 5000);
+
+  } catch (err) {
+    document.getElementById('loading').style.display = 'none';
+    const errDiv = document.createElement('div');
+    errDiv.className = 'error-state';
+    errDiv.innerHTML = `
+      <div class="icon">😅</div>
+      <div class="text">课程数据加载失败</div>
+      <div style="font-size:13px;color:#9CA3AF">${err.message}</div>
+      <div style="font-size:13px;color:#9CA3AF;margin-top:8px">请刷新页面重试</div>
+    `;
+    document.body.appendChild(errDiv);
+  }
+}
+
+// ===== 渲染日期导航 =====
+function renderDateNav(todayStr) {
+  const nav = document.getElementById('dateNav');
+  nav.innerHTML = '';
+
+  allDates.forEach((date, i) => {
+    const d = new Date(date + 'T00:00:00+08:00');
+    const day = d.getDate();
+    const weekday = WEEKDAYS[d.getDay()];
+    const count = coursesByDate[date].length;
+    const isToday = date === todayStr;
+
+    const chip = document.createElement('div');
+    chip.className = 'date-chip' + (isToday ? ' today' : '');
+    chip.dataset.index = i;
+    chip.innerHTML = `
+      <div class="day">${day}</div>
+      <div class="weekday">${weekday}</div>
+      <div class="count">${count}门</div>
+    `;
+
+    chip.addEventListener('click', () => {
+      scrollToIndex(i, true);
+    });
+
+    nav.appendChild(chip);
+  });
+}
+
+// ===== 渲染所有日期面板 =====
+function renderPanels() {
+  const container = document.getElementById('swipeContainer');
+  container.innerHTML = '';
+
+  allDates.forEach((date, i) => {
+    const panel = document.createElement('div');
+    panel.className = 'day-panel';
+    panel.dataset.index = i;
+    panel.dataset.date = date;
+
+    const courses = coursesByDate[date];
+    const d = new Date(date + 'T00:00:00+08:00');
+    const weekday = WEEKDAYS[d.getDay()];
+
+    let html = `
+      <div class="day-header">
+        <div class="date-big">${d.getMonth() + 1}月${d.getDate()}日</div>
+        <div class="weekday-big">${weekday}</div>
+        <div class="course-count">共 ${courses.length} 门</div>
+      </div>
+    `;
+
+    if (courses.length === 0) {
+      html += `
+        <div class="rest-day">
+          <div class="icon">☀️</div>
+          <div class="text">今天没有课程安排</div>
+          <div class="sub">好好休息，劳逸结合~</div>
+        </div>
+      `;
+    } else {
+      html += '<div class="timeline">';
+      courses
+        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+        .forEach(c => {
+          html += renderCourseCard(c);
+        });
+      html += '</div>';
+    }
+
+    panel.innerHTML = html;
+    container.appendChild(panel);
+  });
+}
+
+// ===== 渲染单个课程卡片 =====
+function renderCourseCard(c) {
+  const startRaw = c.start_time || '';
+  const endRaw = c.end_time || '';
+  const start = startRaw.slice(0, 5);
+  const end = endRaw.slice(0, 5);
+  const title = c.title || '未命名课程';
+  const location = c.location || '';
+  const instructor = c.instructor || '';
+  const category = c.category || '';
+  const content = c.content || '';
+  const chapter = c.chapter || '';
+
+  const catStyle = getCategoryStyle(category);
+
+  // 处理内容：按换行分割，取前4行
+  let contentHtml = '';
+  if (content) {
+    const lines = content.split(/\n|；|;/).filter(s => s.trim()).slice(0, 5);
+    contentHtml = lines.map(l => `<span class="content-line">${escapeHtml(l.trim())}</span>`).join('');
+  }
+
+  let metaHtml = '';
+  if (location) {
+    metaHtml += `<div class="meta-item"><span class="meta-icon">📍</span><span>${escapeHtml(location)}</span></div>`;
+  }
+  if (instructor) {
+    metaHtml += `<div class="meta-item"><span class="meta-icon">👤</span><span>${escapeHtml(instructor)}</span></div>`;
+  }
+  if (c.duration && c.duration !== '/') {
+    metaHtml += `<div class="meta-item"><span class="meta-icon">⏱️</span><span>${escapeHtml(c.duration)}h</span></div>`;
+  }
+
+  return `
+    <div class="course-card">
+      <div class="course-time">
+        <div class="start">${start}</div>
+        <div class="end">${end}</div>
+      </div>
+      <div class="category-bar" style="background:${catStyle.bar}"></div>
+      <div class="course-body">
+        <div class="course-top">
+          <div class="course-title">${escapeHtml(title)}</div>
+          ${category ? `<div class="category-tag" style="background:${catStyle.tag_bg};color:${catStyle.tag_text}">${escapeHtml(category)}</div>` : ''}
+        </div>
+        ${metaHtml ? `<div class="course-meta">${metaHtml}</div>` : ''}
+        ${contentHtml ? `<div class="course-content">${contentHtml}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== 滚动控制 =====
+function scrollToIndex(index, smooth) {
+  const container = document.getElementById('swipeContainer');
+  const panels = container.querySelectorAll('.day-panel');
+  if (index < 0 || index >= panels.length) return;
+
+  const target = panels[index];
+  container.scrollTo({
+    left: target.offsetLeft,
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+}
+
+// ===== 滚动监听 — 更新当前日期 =====
+function setupScrollListener() {
+  const container = document.getElementById('swipeContainer');
+  const nav = document.getElementById('dateNav');
+  let scrollTimer = null;
+
+  container.addEventListener('scroll', () => {
+    if (scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      updateActiveDate();
+    }, 80);
+  });
+
+  function updateActiveDate() {
+    const scrollLeft = container.scrollLeft;
+    const panelWidth = container.offsetWidth;
+    const newIndex = Math.round(scrollLeft / panelWidth);
+
+    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allDates.length) {
+      currentIndex = newIndex;
+
+      // 更新导航高亮
+      const chips = nav.querySelectorAll('.date-chip');
+      chips.forEach((chip, i) => {
+        chip.classList.toggle('active', i === currentIndex);
+      });
+
+      // 滚动导航条到当前日期
+      if (chips[currentIndex]) {
+        chips[currentIndex].scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+      }
+
+      // 更新 URL
+      const newUrl = window.location.pathname + '?date=' + allDates[currentIndex];
+      history.replaceState(null, '', newUrl);
+    }
+  }
+
+  // 初始高亮
+  updateActiveDate();
+}
+
+// ===== 启动 =====
+init();
+</script>
+</body>
+</html>
