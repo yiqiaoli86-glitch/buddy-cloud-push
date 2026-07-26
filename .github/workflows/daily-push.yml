@@ -1,0 +1,25 @@
+name: 每日次日课程推送
+
+on:
+  schedule:
+    # UTC 12:00 = 北京时间 20:00，每天执行
+    - cron: '0 12 * * *'
+  workflow_dispatch: # 支持手动触发测试
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 推送次日课程到钉钉群
+        env:
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+        run: python cloud_push.py

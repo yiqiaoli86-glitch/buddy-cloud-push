@@ -1,32 +1,23 @@
-# 搭档Buddy — 每日课程推送（云端版）
+# 搭档Buddy - 每日课程推送（云端版）
 
-京博控股集团 2026届新员工入职训练营课程提醒系统。
+京博控股集团 2026届新员工培训每日课程提醒，通过钉钉自定义机器人 Webhook 自动推送次日课程。
 
-每天 20:00 自动推送次日课程安排到钉钉群，**电脑关机也能正常运行**。
+## 工作流程
 
-## 工作原理
+1. GitHub Actions 每天北京时间 20:00（UTC 12:00）自动触发
+2. 读取 `courses.json` 中次日课程数据
+3. 通过钉钉 Webhook 发送 Markdown 消息到群聊
+4. 无课程日发送休息提醒
 
-```
-Gitee Go 定时触发 (每天20:00)
-    → 运行 cloud_push.py
-    → 读取 courses.json 计算明日课程
-    → 通过钉钉自定义机器人 Webhook 发送到群
-```
+## 必须配置的 Secrets
 
-## 文件说明
+在仓库 Settings → Secrets and variables → Actions → New repository secret 添加：
 
-| 文件 | 说明 |
-|------|------|
-| `cloud_push.py` | 云端推送脚本（纯标准库，无需安装依赖） |
-| `courses.json` | 课程数据（107门课程） |
-| `.workflow/daily-push.yml` | Gitee Go 流水线配置（定时触发） |
+| Secret 名称 | 值 |
+|---|---|
+| `DINGTALK_WEBHOOK` | 钉钉机器人的 Webhook URL |
+| `DINGTALK_SECRET` | 钉钉机器人的加签密钥（SEC开头） |
 
-## 配置方法
+## 手动测试
 
-1. 在钉钉群添加「自定义机器人」，获取 Webhook URL 和加签 Secret
-2. Fork 本仓库
-3. 进入仓库 **设置 → 流水线变量**，添加两个密钥变量：
-   - `DINGTALK_WEBHOOK`：机器人 Webhook URL
-   - `DINGTALK_SECRET`：加签密钥（SEC 开头）
-4. 进入 **流水线** 页面，启用 `daily-course-push` 流水线
-5. 流水线将在每天 20:00（北京时间）自动执行
+在仓库 Actions 页面找到「每日次日课程推送」→ Run workflow 可手动触发测试。

@@ -149,7 +149,7 @@ def main():
 
     if not webhook_url:
         print("❌ 未设置 DINGTALK_WEBHOOK 环境变量")
-        print("   请在 Gitee 仓库 设置 → 流水线变量 中添加 DINGTALK_WEBHOOK")
+        print("   请在 GitHub 仓库 Settings → Secrets → Actions 中添加 DINGTALK_WEBHOOK")
         return
 
     # 发送
