@@ -533,13 +533,32 @@ async function init() {
     // 渲染
     renderDateNav(todayStr);
     renderPanels();
-    scrollToIndex(currentIndex, false);
 
-    // 显示界面
+    // === 关键修复：先显示界面（让容器参与布局），再滚动到目标日期 ===
     document.getElementById('loading').style.display = 'none';
     document.getElementById('header').style.display = 'block';
     document.getElementById('swipeContainer').style.display = 'flex';
     document.getElementById('footerHint').style.display = 'flex';
+
+    // 等浏览器完成布局后，再定位到目标日期
+    requestAnimationFrame(() => {
+      scrollToIndex(currentIndex, false);
+
+      // 更新当前日期后激活高亮
+      const chips = document.querySelectorAll('#dateNav .date-chip');
+      chips.forEach((chip, i) => {
+        chip.classList.toggle('active', i === currentIndex);
+      });
+      // 导航条滚动到当前日期
+      if (chips[currentIndex]) {
+        chips[currentIndex].scrollIntoView({
+          behavior: 'auto', block: 'nearest', inline: 'center'
+        });
+      }
+      // 更新 URL
+      const newUrl = window.location.pathname + '?date=' + allDates[currentIndex];
+      history.replaceState(null, '', newUrl);
+    });
 
     // 监听滚动
     setupScrollListener();
