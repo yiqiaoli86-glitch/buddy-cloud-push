@@ -2,8 +2,8 @@ name: 每日次日课程推送
 
 on:
   schedule:
-    # UTC 12:00 = 北京时间 20:00，每天执行
-    - cron: '0 12 * * *'
+    # UTC 14:00 = 北京时间 22:00，每天执行
+    - cron: '0 14 * * *'
   workflow_dispatch: # 支持手动触发测试
 
 jobs:
@@ -19,7 +19,76 @@ jobs:
           python-version: '3.12'
 
       - name: 推送次日课程到钉钉群
+        id: push
         env:
           DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
           DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
         run: python cloud_push.py
+
+      - name: 推送完成通知李怡俏
+        if: always()
+        run: |
+          python3 << 'PYEOF'
+          import json, os, time, hmac, hashlib, base64, urllib.parse, urllib.request
+
+          webhook    = os.environ.get("DINGTALK_WEBHOOK", "")
+          secret     = os.environ.get("DINGTALK_SECRET", "")
+          push_outcome = os.environ.get("PUSH_OUTCOME", "success")
+
+          # 计算北京时间
+          beijing_now = time.strftime("%Y-%m-%d %H:%M", time.gmtime(time.time() + 8 * 3600))
+
+          # 计算推送日期（22:00前推明天，22:00后推后天）
+          now_h = (time.gmtime(time.time() + 8 * 3600).tm_hour)
+          if now_h >= 22:
+              import datetime
+              push_date = (datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))) + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+          else:
+              import datetime
+              push_date = (datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))) + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+
+          if push_outcome == "success":
+              status_emoji = "✅"
+              status_text = "课程推送成功"
+              run_status  = "success"
+          else:
+              status_emoji = "⚠️"
+              status_text = "课程推送失败，请查看 GitHub Actions 日志"
+              run_status  = "failure"
+
+          title = f"📋 {status_emoji} {status_text}"
+          text  = (
+              f"**推送时间**：{beijing_now}（北京时间）\n"
+              f"**推送日期**：{push_date}\n\n"
+              f"{status_text}，如有问题请查看下方运行记录。\n"
+              f"> [查看运行记录](https://github.com/yiqiaoli86-glitch/buddy-cloud-push/actions)"
+          )
+
+          def sign(url, secret):
+              t = str(round(time.time() * 1000))
+              s = hmac.new(secret.encode(), f"{t}\n{secret}".encode(),
+                           hashlib.sha256).digest()
+              sig = urllib.parse.quote_plus(base64.b64encode(s).decode())
+              sep = "&" if "?" in url else "?"
+              return f"{url}{sep}timestamp={t}&sign={sig}"
+
+          if webhook:
+              url  = sign(webhook, secret) if secret else webhook
+              body = json.dumps({
+                  "msgtype": "markdown",
+                  "markdown": {"title": title, "text": text}
+              }).encode()
+              req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=10) as r:
+                      result = json.loads(r.read())
+                      print(f"通知结果: {result.get('errmsg', 'ok')}")
+              except Exception as e:
+                  print(f"通知发送失败: {e}")
+          else:
+              print("未设置 DINGTALK_WEBHOOK，跳过通知")
+          PYEOF
+        env:
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}

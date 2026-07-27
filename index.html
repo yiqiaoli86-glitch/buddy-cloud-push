@@ -456,6 +456,14 @@ function getBeijingNow() {
   return beijingTime;
 }
 
+// ===== 判断是否已过推送时间（22:00）=====
+function isAfterPushTime() {
+  const beijingNow = getBeijingNow();
+  const hour = beijingNow.getHours();
+  // 22:00 之前显示今天，22:00 之后显示明天
+  return hour >= 22;
+}
+
 function formatDate(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -487,23 +495,32 @@ async function init() {
 
     allDates = Array.from(dateSet).sort();
 
-    // 确定默认日期：URL 参数 > 明天 > 最近的一天
+    // 确定默认日期：URL 参数 > 当天或明天（根据是否过22:00判断）> 最近的一天
     const beijingNow = getBeijingNow();
+    const todayStr = formatDate(beijingNow);
     const tomorrow = new Date(beijingNow);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = formatDate(tomorrow);
-    const todayStr = formatDate(beijingNow);
 
     const urlParams = new URLSearchParams(window.location.search);
     const paramDate = urlParams.get('date');
 
+    // 判断逻辑：22:00 前优先看今天，22:00 后看明天
+    const afterPush = isAfterPushTime();
+
     let defaultDate;
     if (paramDate && coursesByDate[paramDate]) {
+      // 有 URL 参数，直接使用
       defaultDate = paramDate;
-    } else if (coursesByDate[tomorrowStr]) {
+    } else if (afterPush && coursesByDate[tomorrowStr]) {
+      // 已过22:00，显示明天
       defaultDate = tomorrowStr;
     } else if (coursesByDate[todayStr]) {
+      // 今天有课，显示今天
       defaultDate = todayStr;
+    } else if (coursesByDate[tomorrowStr]) {
+      // 今天没课但明天有，显示明天
+      defaultDate = tomorrowStr;
     } else {
       // 找最近的未来日期
       const future = allDates.filter(d => d >= todayStr);
