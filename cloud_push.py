@@ -29,36 +29,39 @@ def query_by_date(courses, date_str):
 
 
 def format_summary_text(courses, date_str):
-    """格式化今日课程总结文本"""
+    """格式化今日课程总结文本（简洁版）"""
     d = datetime.strptime(date_str, "%Y-%m-%d")
     weekday = WEEKDAY_CN[d.weekday()]
 
     if not courses:
         return f"📅 **{date_str} {weekday}**\n\n今日无课程记录。"
 
-    lines = [f"📅 **{date_str} {weekday}** 今日课程回顾"]
-    # 过滤并排序
-    filtered = [c for c in courses if c.get("category") not in ["团队活动","文化活动","体育赛事","休息","考试"]]
+    # 过滤非课程类别，按时间排序
+    filtered = [c for c in courses
+               if c.get("category") not in ["团队活动", "文化活动", "体育赛事", "休息", "考试"]]
     sorted_courses = sorted(filtered, key=lambda x: x.get("start_time", ""))
 
-    for c in sorted_courses[:6]:
-        time_str = f"{c.get('start_time','')[:5]}-{c.get('end_time','')[:5]}"
-        title   = c.get("title", "未知课程")
-        loc     = c.get("location", "")
-        loc_str = f"  📍{loc}" if loc else ""
-        lines.append(f"\n**⏰ {time_str}**  {title}{loc_str}")
-        content = c.get("content", "")
-        if content:
-            # 取第一行或前50字
-            first = content.split("\n")[0].strip()
-            if len(first) > 80:
-                first = first[:77] + "..."
-            lines.append(f"   {first}")
+    if not sorted_courses:
+        return f"📅 **{date_str} {weekday}**\n\n今日无课程记录。"
 
-    if len(sorted_courses) > 6:
-        lines.append(f"\n...等共 {len(sorted_courses)} 门课程")
+    lines = [
+        f"📅 **{date_str} {weekday}** 今日课程回顾",
+        "",
+        "**今日课程：**"
+    ]
 
-    lines.append(f"\n\n👉 [点击查看今日完整知识卡片]({H5_BASE_URL}?v=6&date={date_str})")
+    for c in sorted_courses:
+        time_str = f"{c.get('start_time', '')[:5]}-{c.get('end_time', '')[:5]}"
+        title = c.get("title", "未知课程")
+        lines.append(f"• **{time_str}** {title}")
+
+    lines.extend([
+        "",
+        "📝 详细内容请点击卡片链接查看",
+        "",
+        "⚠️ **提醒：课后评价 & 随堂作业还未完成的同学，请尽快完成哦！**"
+    ])
+
     return "\n".join(lines)
 
 
